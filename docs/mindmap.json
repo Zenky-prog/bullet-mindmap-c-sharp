@@ -6,23 +6,23 @@
     {
       "Id": "e441615b",
       "Title": "الروبوتات",
-      "Note": null,
+      "Note": "مجال يجمع الميكانيكا والإلكترونيات والبرمجة",
       "Children": [
         {
           "Id": "bf94f250",
           "Title": "الحساسات",
-          "Note": null,
+          "Note": "تلتقط بيانات البيئة وتحوّلها لإشارات",
           "Children": [
             {
-              "Id": "67ef8fe5",
-              "Title": "حساس المسافة (HC-SR04)",
-              "Note": null,
+              "Id": "331707d3",
+              "Title": "حساس المسافة",
+              "Note": "يقيس البعد بالموجات فوق الصوتية",
               "Children": []
             },
             {
               "Id": "9cc72b1a",
               "Title": "حساس تتبع الخط",
-              "Note": null,
+              "Note": "يميّز التباين بين السطح والخط",
               "Children": []
             }
           ]
@@ -30,31 +30,18 @@
         {
           "Id": "cb8f3215",
           "Title": "التحكم",
-          "Note": null,
+          "Note": "يأخذ القرار بناءً على المدخلات",
           "Children": [
             {
               "Id": "8e35cca2",
               "Title": "أردوينو",
-              "Note": null,
+              "Note": "لوحة تحكم دقيقة مناسبة للنماذج",
               "Children": []
             },
             {
               "Id": "285aa5f4",
               "Title": "راسبيري باي",
-              "Note": null,
-              "Children": []
-            }
-          ]
-        },
-        {
-          "Id": "eec8dfe4",
-          "Title": "المحاكاة",
-          "Note": null,
-          "Children": [
-            {
-              "Id": "20eb86db",
-              "Title": "Wokwi",
-              "Note": null,
+              "Note": "حاسوب مصغر للمعالجة الأعلى",
               "Children": []
             }
           ]
