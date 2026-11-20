@@ -20,10 +20,15 @@
     .panel { padding: 14px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
     label { font-size: 0.85rem; color: #94a3b8; }
     textarea { width: 100%; flex: 1; min-height: 240px; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 10px; font-size: 0.95rem; line-height: 1.6; resize: vertical; }
-    .canvas-wrap { position: relative; overflow: hidden; min-height: 520px; background: radial-gradient(#1e293b 1px, transparent 1px); background-size: 20px 20px; cursor: grab; touch-action: none; user-select: none; }
+    .workspace { display: flex; flex-direction: column; min-height: 520px; }
+    .canvas-wrap { position: relative; flex: 1; overflow: hidden; min-height: 440px; background: radial-gradient(#1e293b 1px, transparent 1px); background-size: 20px 20px; cursor: grab; touch-action: none; user-select: none; }
     .canvas-wrap.grabbing { cursor: grabbing; }
-    svg { display: block; width: 100%; height: 100%; min-height: 520px; }
+    svg { display: block; width: 100%; height: 100%; min-height: 440px; }
     .node-group { cursor: pointer; }
+    .note-bar { background: #1e293b; border-top: 1px solid #334155; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .note-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .note-title { font-weight: 700; color: #38bdf8; font-size: 0.95rem; }
+    .note-input { width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 8px 10px; font-size: 0.9rem; }
     .hint { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; }
   </style>
 </head>
@@ -48,29 +53,43 @@
 
   <main>
     <section class="panel">
-      <label for="bulletsInput">اكتب النقاط (استخدم مسافتين لكل مستوى فرعي):</label>
-      <textarea id="bulletsInput">- الروبوتات
-  - الحساسات
-    - حساس المسافة
-    - حساس تتبع الخط
-  - التحكم
-    - أردوينو
-    - راسبيري باي</textarea>
+      <label for="bulletsInput">اكتب النقاط (استخدم مسافتين للتفرع و | لإضافة ملاحظة):</label>
+      <textarea id="bulletsInput">- الروبوتات | مجال يجمع الميكانيكا والإلكترونيات والبرمجة
+  - الحساسات | تلتقط بيانات البيئة وتحوّلها لإشارات
+    - حساس المسافة | يقيس البعد بالموجات فوق الصوتية
+    - حساس تتبع الخط | يميّز التباين بين السطح والخط
+  - التحكم | يأخذ القرار بناءً على المدخلات
+    - أردوينو | لوحة تحكم دقيقة مناسبة للنماذج
+    - راسبيري باي | حاسوب مصغر للمعالجة الأعلى</textarea>
       <div class="hint">
-        • اسحب الخلفية لتحريك العرض، واستخدم (+) و (-) أو عجلة الماوس للتكبير والتصغير.<br />
-        • اضغط على أي فرع له أبناء لطيّه أو فتحه.
+        • أي نقطة تحتوي على ملاحظة تظهر بعلامة 📝.<br />
+        • اضغط على عقدة لطي/فتح فروعها أو لعرض وتعديل ملاحظتها في الأسفل.
       </div>
     </section>
 
-    <section id="canvasWrap" class="canvas-wrap">
-      <svg id="mapSvg" viewBox="0 0 1000 600">
-        <g id="viewportGroup"></g>
-      </svg>
+    <section class="workspace">
+      <div id="canvasWrap" class="canvas-wrap">
+        <svg id="mapSvg" viewBox="0 0 1000 600">
+          <g id="viewportGroup"></g>
+        </svg>
+      </div>
+
+      <div class="note-bar">
+        <div class="note-header">
+          <span id="selectedNodeTitle" class="note-title">اختر عقدة لعرض أو تعديل ملاحظتها</span>
+          <div style="display:flex; gap:8px;">
+            <button id="toggleBranchBtn" class="secondary" style="display:none;">طي / فتح الفروع</button>
+            <button id="saveNoteBtn">حفظ الملاحظة</button>
+          </div>
+        </div>
+        <input id="selectedNodeNote" class="note-input" type="text" placeholder="اكتب ملاحظة لهذه النقطة..." />
+      </div>
     </section>
   </main>
 
   <script>
     let currentTree = null;
+    let selectedNode = null;
     let panX = 20;
     let panY = 20;
     let scale = 1;
@@ -83,6 +102,41 @@
     const svg = document.getElementById("mapSvg");
     const viewportGroup = document.getElementById("viewportGroup");
     const zoomBadge = document.getElementById("zoomBadge");
+    const selectedNodeTitle = document.getElementById("selectedNodeTitle");
+    const selectedNodeNote = document.getElementById("selectedNodeNote");
+    const toggleBranchBtn = document.getElementById("toggleBranchBtn");
+
+    function selectNode(node) {
+      selectedNode = node;
+      if (!node) {
+        selectedNodeTitle.textContent = "اختر عقدة لعرض أو تعديل ملاحظتها";
+        selectedNodeNote.value = "";
+        toggleBranchBtn.style.display = "none";
+        return;
+      }
+      selectedNodeTitle.textContent = `النقطة: ${node.title}`;
+      selectedNodeNote.value = node.note || "";
+      const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+      toggleBranchBtn.style.display = hasChildren ? "inline-block" : "none";
+      if (hasChildren) {
+        toggleBranchBtn.textContent = node.collapsed ? `فتح الفروع (+${node.children.length})` : "طي الفروع";
+      }
+    }
+
+    document.getElementById("saveNoteBtn").addEventListener("click", () => {
+      if (!selectedNode) return;
+      const val = selectedNodeNote.value.trim();
+      selectedNode.note = val ? val : null;
+      renderMindMap(currentTree);
+      selectNode(selectedNode);
+    });
+
+    toggleBranchBtn.addEventListener("click", () => {
+      if (!selectedNode || !selectedNode.children?.length) return;
+      selectedNode.collapsed = !selectedNode.collapsed;
+      renderMindMap(currentTree);
+      selectNode(selectedNode);
+    });
 
     function applyTransform() {
       viewportGroup.setAttribute("transform", `translate(${panX}, ${panY}) scale(${scale})`);
@@ -147,7 +201,7 @@
     document.getElementById("resetViewBtn").addEventListener("click", resetView);
 
     function parseBullets(rawText, rootTitle) {
-      const root = { title: rootTitle || "الخريطة الذهنية", children: [], collapsed: false };
+      const root = { title: rootTitle || "الخريطة الذهنية", note: null, children: [], collapsed: false };
       const stack = [{ indent: -1, node: root }];
       const lines = rawText.split(/\r?\n/);
 
@@ -158,10 +212,20 @@
         const cleaned = normalized.trim().replace(/^[-*•]\s*/, "").trim();
         if (!cleaned) continue;
 
+        let title = cleaned;
+        let note = null;
+        const pipeIdx = cleaned.indexOf("|");
+        if (pipeIdx >= 0) {
+          title = cleaned.slice(0, pipeIdx).trim();
+          const rawNote = cleaned.slice(pipeIdx + 1).trim();
+          if (rawNote) note = rawNote;
+        }
+        if (!title) continue;
+
         while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
           stack.pop();
         }
-        const child = { title: cleaned, children: [], collapsed: false };
+        const child = { title, note, children: [], collapsed: false };
         stack[stack.length - 1].node.children.push(child);
         stack.push({ indent, node: child });
       }
@@ -178,25 +242,25 @@
 
     function layoutTree(root) {
       let leafIndex = 0;
-      const levelGap = 220;
-      const rowGap = 74;
+      const levelGap = 230;
+      const rowGap = 76;
 
       function assignCoords(node, depth) {
         const visibleChildren = node.collapsed ? [] : (node.children || []);
         if (visibleChildren.length === 0) {
-          node.x = 130 + depth * levelGap;
+          node.x = 135 + depth * levelGap;
           node.y = 70 + leafIndex * rowGap;
           leafIndex++;
           return node.y;
         }
         const childYs = visibleChildren.map(c => assignCoords(c, depth + 1));
-        node.x = 130 + depth * levelGap;
+        node.x = 135 + depth * levelGap;
         node.y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
         return node.y;
       }
 
       assignCoords(root, 0);
-      const maxX = Math.max(1000, root.x + 420);
+      const maxX = Math.max(1000, root.x + 440);
       const maxY = Math.max(600, leafIndex * rowGap + 120);
       return { maxX, maxY };
     }
@@ -227,15 +291,17 @@
 
       function drawNodes(node, depth) {
         const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+        const hasNote = Boolean(node.note && node.note.trim());
         const g = document.createElementNS(ns, "g");
         g.setAttribute("class", "node-group");
 
-        const labelText = hasChildren && node.collapsed
-          ? `${node.title} (+${node.children.length})`
-          : node.title;
+        let labelText = node.title;
+        if (hasNote) labelText = `📝 ${labelText}`;
+        if (hasChildren && node.collapsed) labelText = `${labelText} (+${node.children.length})`;
 
+        const isSelected = selectedNode === node;
         const rect = document.createElementNS(ns, "rect");
-        const w = Math.max(135, Math.min(240, labelText.length * 10 + 38));
+        const w = Math.max(140, Math.min(255, labelText.length * 10 + 42));
         const h = 40;
         rect.setAttribute("x", node.x - w / 2);
         rect.setAttribute("y", node.y - h / 2);
@@ -243,8 +309,8 @@
         rect.setAttribute("height", h);
         rect.setAttribute("rx", "10");
         rect.setAttribute("fill", depth === 0 ? "#0369a1" : "#1e293b");
-        rect.setAttribute("stroke", colors[depth % colors.length]);
-        rect.setAttribute("stroke-width", hasChildren ? "2.5" : "1.8");
+        rect.setAttribute("stroke", isSelected ? "#facc15" : colors[depth % colors.length]);
+        rect.setAttribute("stroke-width", isSelected ? "3" : (hasChildren ? "2.5" : "1.8"));
 
         const text = document.createElementNS(ns, "text");
         text.setAttribute("x", node.x);
@@ -257,14 +323,18 @@
         g.appendChild(rect);
         g.appendChild(text);
 
-        if (hasChildren) {
-          g.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (movedDuringDrag) return;
+        g.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (movedDuringDrag) return;
+          selectNode(node);
+          if (hasChildren && !hasNote) {
             node.collapsed = !node.collapsed;
             renderMindMap(currentTree);
-          });
-        }
+            selectNode(node);
+          } else {
+            renderMindMap(currentTree);
+          }
+        });
 
         viewportGroup.appendChild(g);
 
@@ -283,7 +353,10 @@
     function updateFromTextarea() {
       const text = document.getElementById("bulletsInput").value;
       const title = document.getElementById("rootTitle").value;
-      renderMindMap(parseBullets(text, title));
+      const tree = parseBullets(text, title);
+      selectedNode = null;
+      selectNode(null);
+      renderMindMap(tree);
     }
 
     document.getElementById("renderBtn").addEventListener("click", updateFromTextarea);
@@ -294,6 +367,7 @@
       if (!currentTree) return;
       setAllCollapsed(currentTree, false);
       renderMindMap(currentTree);
+      if (selectedNode) selectNode(selectedNode);
     });
 
     document.getElementById("exportJsonBtn").addEventListener("click", () => {
@@ -317,6 +391,8 @@
         const data = JSON.parse(text);
         const mapped = mapImportedNode(data);
         document.getElementById("rootTitle").value = mapped.title || "خريطة ذهنية";
+        selectedNode = null;
+        selectNode(null);
         renderMindMap(mapped);
       } catch {
         alert("تعذر قراءة ملف JSON، تأكد من صحة تنسيقه.");
@@ -331,6 +407,8 @@
         const data = await res.json();
         const mapped = mapImportedNode(data);
         document.getElementById("rootTitle").value = mapped.title || "خريطة ذهنية";
+        selectedNode = null;
+        selectNode(null);
         renderMindMap(mapped);
       } catch (err) {
         alert(err.message);
@@ -340,6 +418,7 @@
     function mapImportedNode(n) {
       return {
         title: n.Title ?? n.title ?? "فرع",
+        note: n.Note ?? n.note ?? null,
         collapsed: Boolean(n.collapsed),
         children: (n.Children ?? n.children ?? []).map(mapImportedNode)
       };
