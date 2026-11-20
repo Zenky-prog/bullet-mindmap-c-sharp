@@ -9,7 +9,7 @@
     body { margin: 0; background: #0f172a; color: #e2e8f0; display: flex; flex-direction: column; min-height: 100vh; }
     header { padding: 14px 20px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
     header h1 { margin: 0; font-size: 1.05rem; color: #38bdf8; }
-    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     button, input { background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 8px; padding: 7px 12px; font-size: 0.9rem; }
     button { cursor: pointer; background: #0284c7; border-color: #0284c7; font-weight: 600; }
     button.secondary { background: #334155; border-color: #475569; }
@@ -21,6 +21,7 @@
     textarea { width: 100%; flex: 1; min-height: 260px; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 10px; font-size: 0.95rem; line-height: 1.6; resize: vertical; }
     .canvas-wrap { position: relative; overflow: auto; background: radial-gradient(#1e293b 1px, transparent 1px); background-size: 20px 20px; padding: 20px; }
     svg { display: block; margin: auto; }
+    .node-group { cursor: pointer; }
     .hint { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; }
   </style>
 </head>
@@ -30,8 +31,12 @@
     <div class="controls">
       <input id="rootTitle" type="text" value="خريطة ذهنية" placeholder="عنوان الجذر" />
       <button id="renderBtn">تحديث الخريطة</button>
+      <button id="expandAllBtn" class="secondary">فتح الكل</button>
       <button id="loadJsonBtn" class="secondary">تحميل mindmap.json</button>
+      <button id="exportJsonBtn" class="secondary">تصدير JSON</button>
+      <button id="importJsonBtn" class="secondary">استيراد JSON</button>
       <button id="downloadSvgBtn" class="secondary">حفظ SVG</button>
+      <input id="jsonFileInput" type="file" accept=".json,application/json" style="display:none" />
     </div>
   </header>
 
@@ -45,7 +50,10 @@
   - التحكم
     - أردوينو
     - راسبيري باي</textarea>
-      <div class="hint">مثال: مسافتين أو أربع مسافات قبل الشرطة (`-`) تحدد عمق التفرع.</div>
+      <div class="hint">
+        • اضغط على أي فرع له أبناء لطيّه أو فتحه.<br />
+        • يمكنك حفظ الخريطة كملف JSON واستعادتها لاحقاً.
+      </div>
     </section>
 
     <section class="canvas-wrap">
@@ -54,8 +62,10 @@
   </main>
 
   <script>
+    let currentTree = null;
+
     function parseBullets(rawText, rootTitle) {
-      const root = { title: rootTitle || "الخريطة الذهنية", children: [] };
+      const root = { title: rootTitle || "الخريطة الذهنية", children: [], collapsed: false };
       const stack = [{ indent: -1, node: root }];
       const lines = rawText.split(/\r?\n/);
 
@@ -69,38 +79,48 @@
         while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
           stack.pop();
         }
-        const child = { title: cleaned, children: [] };
+        const child = { title: cleaned, children: [], collapsed: false };
         stack[stack.length - 1].node.children.push(child);
         stack.push({ indent, node: child });
       }
       return root;
     }
 
+    function setAllCollapsed(node, collapsed) {
+      if (!node) return;
+      if (node.children && node.children.length > 0) {
+        node.collapsed = collapsed;
+        node.children.forEach(c => setAllCollapsed(c, collapsed));
+      }
+    }
+
     function layoutTree(root) {
       let leafIndex = 0;
-      const levelGap = 210;
-      const rowGap = 72;
+      const levelGap = 220;
+      const rowGap = 74;
 
       function assignCoords(node, depth) {
-        if (!node.children || node.children.length === 0) {
-          node.x = 120 + depth * levelGap;
+        const visibleChildren = node.collapsed ? [] : (node.children || []);
+        if (visibleChildren.length === 0) {
+          node.x = 130 + depth * levelGap;
           node.y = 70 + leafIndex * rowGap;
           leafIndex++;
           return node.y;
         }
-        const childYs = node.children.map(c => assignCoords(c, depth + 1));
-        node.x = 120 + depth * levelGap;
+        const childYs = visibleChildren.map(c => assignCoords(c, depth + 1));
+        node.x = 130 + depth * levelGap;
         node.y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
         return node.y;
       }
 
       assignCoords(root, 0);
-      const maxX = Math.max(900, root.x + 360);
+      const maxX = Math.max(920, root.x + 380);
       const maxY = Math.max(520, leafIndex * rowGap + 100);
       return { maxX, maxY };
     }
 
     function renderMindMap(root) {
+      currentTree = root;
       const svg = document.getElementById("mapSvg");
       const { maxX, maxY } = layoutTree(root);
       svg.setAttribute("width", maxX);
@@ -112,6 +132,7 @@
       const colors = ["#0284c7", "#0d9488", "#7c3aed", "#d97706"];
 
       function drawEdges(node, depth) {
+        if (node.collapsed) return;
         for (const child of node.children || []) {
           const path = document.createElementNS(ns, "path");
           const midX = (node.x + child.x) / 2;
@@ -126,9 +147,16 @@
       }
 
       function drawNodes(node, depth) {
+        const hasChildren = Array.isArray(node.children) && node.children.length > 0;
         const g = document.createElementNS(ns, "g");
+        g.setAttribute("class", "node-group");
+
+        const labelText = hasChildren && node.collapsed
+          ? `${node.title} (+${node.children.length})`
+          : node.title;
+
         const rect = document.createElementNS(ns, "rect");
-        const w = Math.max(130, Math.min(220, node.title.length * 10 + 36));
+        const w = Math.max(135, Math.min(240, labelText.length * 10 + 38));
         const h = 40;
         rect.setAttribute("x", node.x - w / 2);
         rect.setAttribute("y", node.y - h / 2);
@@ -137,7 +165,7 @@
         rect.setAttribute("rx", "10");
         rect.setAttribute("fill", depth === 0 ? "#0369a1" : "#1e293b");
         rect.setAttribute("stroke", colors[depth % colors.length]);
-        rect.setAttribute("stroke-width", "2");
+        rect.setAttribute("stroke-width", hasChildren ? "2.5" : "1.8");
 
         const text = document.createElementNS(ns, "text");
         text.setAttribute("x", node.x);
@@ -145,14 +173,24 @@
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("fill", "#f8fafc");
         text.setAttribute("font-size", "13.5");
-        text.textContent = node.title;
+        text.textContent = labelText;
 
         g.appendChild(rect);
         g.appendChild(text);
+
+        if (hasChildren) {
+          g.addEventListener("click", () => {
+            node.collapsed = !node.collapsed;
+            renderMindMap(currentTree);
+          });
+        }
+
         svg.appendChild(g);
 
-        for (const child of node.children || []) {
-          drawNodes(child, depth + 1);
+        if (!node.collapsed) {
+          for (const child of node.children || []) {
+            drawNodes(child, depth + 1);
+          }
         }
       }
 
@@ -170,25 +208,58 @@
     document.getElementById("bulletsInput").addEventListener("input", updateFromTextarea);
     document.getElementById("rootTitle").addEventListener("input", updateFromTextarea);
 
+    document.getElementById("expandAllBtn").addEventListener("click", () => {
+      if (!currentTree) return;
+      setAllCollapsed(currentTree, false);
+      renderMindMap(currentTree);
+    });
+
+    document.getElementById("exportJsonBtn").addEventListener("click", () => {
+      if (!currentTree) return;
+      const blob = new Blob([JSON.stringify(currentTree, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mindmap.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    const jsonFileInput = document.getElementById("jsonFileInput");
+    document.getElementById("importJsonBtn").addEventListener("click", () => jsonFileInput.click());
+    jsonFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const mapped = mapImportedNode(data);
+        document.getElementById("rootTitle").value = mapped.title || "خريطة ذهنية";
+        renderMindMap(mapped);
+      } catch {
+        alert("تعذر قراءة ملف JSON، تأكد من صحة تنسيقه.");
+      }
+      jsonFileInput.value = "";
+    });
+
     document.getElementById("loadJsonBtn").addEventListener("click", async () => {
       try {
         const res = await fetch("./mindmap.json?t=" + Date.now());
         if (!res.ok) throw new Error("ملف mindmap.json غير موجود بعد");
         const data = await res.json();
-        document.getElementById("rootTitle").value = data.Title || data.title || "خريطة ذهنية";
-        renderMindMap({
-          title: data.Title || data.title,
-          children: (data.Children || data.children || []).map(mapCSharpNode)
-        });
-      } catch (e) {
-        alert(e.message);
+        const mapped = mapImportedNode(data);
+        document.getElementById("rootTitle").value = mapped.title || "خريطة ذهنية";
+        renderMindMap(mapped);
+      } catch (err) {
+        alert(err.message);
       }
     });
 
-    function mapCSharpNode(n) {
+    function mapImportedNode(n) {
       return {
-        title: n.Title ?? n.title ?? "",
-        children: (n.Children ?? n.children ?? []).map(mapCSharpNode)
+        title: n.Title ?? n.title ?? "فرع",
+        collapsed: Boolean(n.collapsed),
+        children: (n.Children ?? n.children ?? []).map(mapImportedNode)
       };
     }
 
