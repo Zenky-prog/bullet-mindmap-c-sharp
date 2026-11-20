@@ -13,36 +13,38 @@
     button, input { background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 8px; padding: 7px 12px; font-size: 0.9rem; }
     button { cursor: pointer; background: #0284c7; border-color: #0284c7; font-weight: 600; }
     button.secondary { background: #334155; border-color: #475569; }
+    button.accent { background: #0d9488; border-color: #0d9488; }
     button:hover { opacity: 0.92; }
     .zoom-badge { font-size: 0.85rem; color: #cbd5e1; background: #0f172a; border: 1px solid #475569; border-radius: 8px; padding: 6px 10px; min-width: 62px; text-align: center; }
     main { display: grid; grid-template-columns: 360px 1fr; flex: 1; min-height: 0; }
     @media (max-width: 850px) { main { grid-template-columns: 1fr; } }
     .panel { padding: 14px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
     label { font-size: 0.85rem; color: #94a3b8; }
-    textarea { width: 100%; flex: 1; min-height: 240px; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 10px; font-size: 0.95rem; line-height: 1.6; resize: vertical; }
+    textarea { width: 100%; flex: 1; min-height: 220px; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 10px; font-size: 0.95rem; line-height: 1.6; resize: vertical; }
     .workspace { display: flex; flex-direction: column; min-height: 520px; }
-    .canvas-wrap { position: relative; flex: 1; overflow: hidden; min-height: 440px; background: radial-gradient(#1e293b 1px, transparent 1px); background-size: 20px 20px; cursor: grab; touch-action: none; user-select: none; }
+    .canvas-wrap { position: relative; flex: 1; overflow: hidden; min-height: 430px; background: radial-gradient(#1e293b 1px, transparent 1px); background-size: 20px 20px; cursor: grab; touch-action: none; user-select: none; }
     .canvas-wrap.grabbing { cursor: grabbing; }
-    svg { display: block; width: 100%; height: 100%; min-height: 440px; }
+    svg { display: block; width: 100%; height: 100%; min-height: 430px; }
     .node-group { cursor: pointer; }
-    .note-bar { background: #1e293b; border-top: 1px solid #334155; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .note-bar { background: #1e293b; border-top: 2px solid #0d9488; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
     .note-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .note-title { font-weight: 700; color: #38bdf8; font-size: 0.95rem; }
+    .note-title { font-weight: 700; color: #2dd4bf; font-size: 0.95rem; }
     .note-input { width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 8px 10px; font-size: 0.9rem; }
     .hint { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; }
   </style>
 </head>
 <body>
   <header>
-    <h1>محاكي النقاط إلى خريطة ذهنية</h1>
+    <h1>محاكي النقاط إلى خريطة ذهنية — v3 (ملاحظات)</h1>
     <div class="controls">
       <input id="rootTitle" type="text" value="خريطة ذهنية" placeholder="عنوان الجذر" />
+      <button id="sampleNotesBtn" class="accent">مثال بملاحظات</button>
       <button id="renderBtn">تحديث الخريطة</button>
       <button id="expandAllBtn" class="secondary">فتح الكل</button>
       <button id="zoomInBtn" class="secondary">+</button>
       <span id="zoomBadge" class="zoom-badge">100%</span>
       <button id="zoomOutBtn" class="secondary">-</button>
-      <button id="resetViewBtn" class="secondary">إعادة ضبط العرض</button>
+      <button id="resetViewBtn" class="secondary">إعادة ضبط</button>
       <button id="loadJsonBtn" class="secondary">تحميل mindmap.json</button>
       <button id="exportJsonBtn" class="secondary">تصدير JSON</button>
       <button id="importJsonBtn" class="secondary">استيراد JSON</button>
@@ -53,17 +55,17 @@
 
   <main>
     <section class="panel">
-      <label for="bulletsInput">اكتب النقاط (استخدم مسافتين للتفرع و | لإضافة ملاحظة):</label>
-      <textarea id="bulletsInput">- الروبوتات | مجال يجمع الميكانيكا والإلكترونيات والبرمجة
-  - الحساسات | تلتقط بيانات البيئة وتحوّلها لإشارات
-    - حساس المسافة | يقيس البعد بالموجات فوق الصوتية
-    - حساس تتبع الخط | يميّز التباين بين السطح والخط
-  - التحكم | يأخذ القرار بناءً على المدخلات
-    - أردوينو | لوحة تحكم دقيقة مناسبة للنماذج
-    - راسبيري باي | حاسوب مصغر للمعالجة الأعلى</textarea>
+      <label for="bulletsInput">اكتب النقاط (مسافتين للتفرع و | لإضافة ملاحظة):</label>
+      <textarea id="bulletsInput">- الروبوتات | يجمع بين الهاردوير والبرمجة
+  - الحساسات | قراءة البيئة
+    - حساس المسافة | قياس البعد بالصوت
+    - حساس تتبع الخط | تمييز المسار
+  - التحكم | اتخاذ القرار
+    - أردوينو | تحكم مباشر وسريع
+    - راسبيري باي | معالجة أعلى</textarea>
       <div class="hint">
-        • أي نقطة تحتوي على ملاحظة تظهر بعلامة 📝.<br />
-        • اضغط على عقدة لطي/فتح فروعها أو لعرض وتعديل ملاحظتها في الأسفل.
+        • الملاحظات تظهر مباشرة أسفل العقدة بلون أخضر وبعلامة 📝.<br />
+        • اضغط على زر "مثال بملاحظات" في الأعلى لاختبار سريع، أو اضغط على أي عقدة لتعديل ملاحظتها بالأسفل.
       </div>
     </section>
 
@@ -76,13 +78,13 @@
 
       <div class="note-bar">
         <div class="note-header">
-          <span id="selectedNodeTitle" class="note-title">اختر عقدة لعرض أو تعديل ملاحظتها</span>
+          <span id="selectedNodeTitle" class="note-title">محرر الملاحظات: اختر أي عقدة من الخريطة</span>
           <div style="display:flex; gap:8px;">
             <button id="toggleBranchBtn" class="secondary" style="display:none;">طي / فتح الفروع</button>
-            <button id="saveNoteBtn">حفظ الملاحظة</button>
+            <button id="saveNoteBtn" class="accent">حفظ الملاحظة</button>
           </div>
         </div>
-        <input id="selectedNodeNote" class="note-input" type="text" placeholder="اكتب ملاحظة لهذه النقطة..." />
+        <input id="selectedNodeNote" class="note-input" type="text" placeholder="اكتب ملاحظة لهذه النقطة ثم اضغط حفظ الملاحظة..." />
       </div>
     </section>
   </main>
@@ -109,12 +111,12 @@
     function selectNode(node) {
       selectedNode = node;
       if (!node) {
-        selectedNodeTitle.textContent = "اختر عقدة لعرض أو تعديل ملاحظتها";
+        selectedNodeTitle.textContent = "محرر الملاحظات: اختر أي عقدة من الخريطة";
         selectedNodeNote.value = "";
         toggleBranchBtn.style.display = "none";
         return;
       }
-      selectedNodeTitle.textContent = `النقطة: ${node.title}`;
+      selectedNodeTitle.textContent = `ملاحظة العقدة: ${node.title}`;
       selectedNodeNote.value = node.note || "";
       const hasChildren = Array.isArray(node.children) && node.children.length > 0;
       toggleBranchBtn.style.display = hasChildren ? "inline-block" : "none";
@@ -136,6 +138,17 @@
       selectedNode.collapsed = !selectedNode.collapsed;
       renderMindMap(currentTree);
       selectNode(selectedNode);
+    });
+
+    document.getElementById("sampleNotesBtn").addEventListener("click", () => {
+      document.getElementById("bulletsInput").value =
+`- مشروع روبوت تعليمي | خطة التنفيذ خطوة بخطوة
+  - مرحلة المحاكاة | اختبار الدوائر أونلاين أولاً
+    - Wokwi | محاكاة أردوينو والحساسات
+    - كتابة الكود | منطق الحركة وتجنب العوائق
+  - مرحلة النشر | مشاركة المخرجات والملاحظات
+    - GitHub | حفظ الكود وعرض الصفحة`;
+      updateFromTextarea();
     });
 
     function applyTransform() {
@@ -242,26 +255,26 @@
 
     function layoutTree(root) {
       let leafIndex = 0;
-      const levelGap = 230;
-      const rowGap = 76;
+      const levelGap = 255;
+      const rowGap = 92;
 
       function assignCoords(node, depth) {
         const visibleChildren = node.collapsed ? [] : (node.children || []);
         if (visibleChildren.length === 0) {
-          node.x = 135 + depth * levelGap;
-          node.y = 70 + leafIndex * rowGap;
+          node.x = 145 + depth * levelGap;
+          node.y = 80 + leafIndex * rowGap;
           leafIndex++;
           return node.y;
         }
         const childYs = visibleChildren.map(c => assignCoords(c, depth + 1));
-        node.x = 135 + depth * levelGap;
+        node.x = 145 + depth * levelGap;
         node.y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
         return node.y;
       }
 
       assignCoords(root, 0);
-      const maxX = Math.max(1000, root.x + 440);
-      const maxY = Math.max(600, leafIndex * rowGap + 120);
+      const maxX = Math.max(1050, root.x + 480);
+      const maxY = Math.max(620, leafIndex * rowGap + 140);
       return { maxX, maxY };
     }
 
@@ -279,7 +292,7 @@
         for (const child of node.children || []) {
           const path = document.createElementNS(ns, "path");
           const midX = (node.x + child.x) / 2;
-          const d = `M ${node.x + 70} ${node.y} C ${midX} ${node.y}, ${midX} ${child.y}, ${child.x - 70} ${child.y}`;
+          const d = `M ${node.x + 80} ${node.y} C ${midX} ${node.y}, ${midX} ${child.y}, ${child.x - 80} ${child.y}`;
           path.setAttribute("d", d);
           path.setAttribute("fill", "none");
           path.setAttribute("stroke", colors[depth % colors.length]);
@@ -296,12 +309,11 @@
         g.setAttribute("class", "node-group");
 
         let labelText = node.title;
-        if (hasNote) labelText = `📝 ${labelText}`;
         if (hasChildren && node.collapsed) labelText = `${labelText} (+${node.children.length})`;
 
         const isSelected = selectedNode === node;
         const rect = document.createElementNS(ns, "rect");
-        const w = Math.max(140, Math.min(255, labelText.length * 10 + 42));
+        const w = Math.max(150, Math.min(265, labelText.length * 10 + 44));
         const h = 40;
         rect.setAttribute("x", node.x - w / 2);
         rect.setAttribute("y", node.y - h / 2);
@@ -322,6 +334,18 @@
 
         g.appendChild(rect);
         g.appendChild(text);
+
+        if (hasNote) {
+          const shortNote = node.note.length > 28 ? node.note.slice(0, 28) + "..." : node.note;
+          const noteText = document.createElementNS(ns, "text");
+          noteText.setAttribute("x", node.x);
+          noteText.setAttribute("y", node.y + 34);
+          noteText.setAttribute("text-anchor", "middle");
+          noteText.setAttribute("fill", "#2dd4bf");
+          noteText.setAttribute("font-size", "12");
+          noteText.textContent = `📝 ${shortNote}`;
+          g.appendChild(noteText);
+        }
 
         g.addEventListener("click", (e) => {
           e.stopPropagation();
