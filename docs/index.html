@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>محاكي تحويل النقاط إلى خريطة ذهنية (C# + GitHub)</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: #0f172a; color: #e2e8f0; display: flex; flex-direction: column; min-height: 100vh; }
+    header { padding: 14px 20px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+    header h1 { margin: 0; font-size: 1.05rem; color: #38bdf8; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    button, input { background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 8px; padding: 7px 12px; font-size: 0.9rem; }
+    button { cursor: pointer; background: #0284c7; border-color: #0284c7; font-weight: 600; }
+    button.secondary { background: #334155; border-color: #475569; }
+    button:hover { opacity: 0.92; }
+    main { display: grid; grid-template-columns: 360px 1fr; flex: 1; min-height: 0; }
+    @media (max-width: 850px) { main { grid-template-columns: 1fr; } }
+    .panel { padding: 14px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
+    label { font-size: 0.85rem; color: #94a3b8; }
+    textarea { width: 100%; flex: 1; min-height: 260px; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 10px; font-size: 0.95rem; line-height: 1.6; resize: vertical; }
+    .canvas-wrap { position: relative; overflow: auto; background: radial-gradient(#1e293b 1px, transparent 1px); background-size: 20px 20px; padding: 20px; }
+    svg { display: block; margin: auto; }
+    .hint { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>محاكي النقاط إلى خريطة ذهنية</h1>
+    <div class="controls">
+      <input id="rootTitle" type="text" value="خريطة ذهنية" placeholder="عنوان الجذر" />
+      <button id="renderBtn">تحديث الخريطة</button>
+      <button id="loadJsonBtn" class="secondary">تحميل mindmap.json</button>
+      <button id="downloadSvgBtn" class="secondary">حفظ SVG</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <label for="bulletsInput">اكتب النقاط (استخدم مسافتين لكل مستوى فرعي):</label>
+      <textarea id="bulletsInput">- الروبوتات
+  - الحساسات
+    - حساس المسافة
+    - حساس تتبع الخط
+  - التحكم
+    - أردوينو
+    - راسبيري باي</textarea>
+      <div class="hint">مثال: مسافتين أو أربع مسافات قبل الشرطة (`-`) تحدد عمق التفرع.</div>
+    </section>
+
+    <section class="canvas-wrap">
+      <svg id="mapSvg" width="1000" height="600" viewBox="0 0 1000 600"></svg>
+    </section>
+  </main>
+
+  <script>
+    function parseBullets(rawText, rootTitle) {
+      const root = { title: rootTitle || "الخريطة الذهنية", children: [] };
+      const stack = [{ indent: -1, node: root }];
+      const lines = rawText.split(/\r?\n/);
+
+      for (const rawLine of lines) {
+        if (!rawLine.trim()) continue;
+        const normalized = rawLine.replace(/\t/g, "  ");
+        const indent = (normalized.match(/^ */) || [""])[0].length;
+        const cleaned = normalized.trim().replace(/^[-*•]\s*/, "").trim();
+        if (!cleaned) continue;
+
+        while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+          stack.pop();
+        }
+        const child = { title: cleaned, children: [] };
+        stack[stack.length - 1].node.children.push(child);
+        stack.push({ indent, node: child });
+      }
+      return root;
+    }
+
+    function layoutTree(root) {
+      let leafIndex = 0;
+      const levelGap = 210;
+      const rowGap = 72;
+
+      function assignCoords(node, depth) {
+        if (!node.children || node.children.length === 0) {
+          node.x = 120 + depth * levelGap;
+          node.y = 70 + leafIndex * rowGap;
+          leafIndex++;
+          return node.y;
+        }
+        const childYs = node.children.map(c => assignCoords(c, depth + 1));
+        node.x = 120 + depth * levelGap;
+        node.y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
+        return node.y;
+      }
+
+      assignCoords(root, 0);
+      const maxX = Math.max(900, root.x + 360);
+      const maxY = Math.max(520, leafIndex * rowGap + 100);
+      return { maxX, maxY };
+    }
+
+    function renderMindMap(root) {
+      const svg = document.getElementById("mapSvg");
+      const { maxX, maxY } = layoutTree(root);
+      svg.setAttribute("width", maxX);
+      svg.setAttribute("height", maxY);
+      svg.setAttribute("viewBox", `0 0 ${maxX} ${maxY}`);
+      svg.innerHTML = "";
+
+      const ns = "http://www.w3.org/2000/svg";
+      const colors = ["#0284c7", "#0d9488", "#7c3aed", "#d97706"];
+
+      function drawEdges(node, depth) {
+        for (const child of node.children || []) {
+          const path = document.createElementNS(ns, "path");
+          const midX = (node.x + child.x) / 2;
+          const d = `M ${node.x + 70} ${node.y} C ${midX} ${node.y}, ${midX} ${child.y}, ${child.x - 70} ${child.y}`;
+          path.setAttribute("d", d);
+          path.setAttribute("fill", "none");
+          path.setAttribute("stroke", colors[depth % colors.length]);
+          path.setAttribute("stroke-width", "2.5");
+          svg.appendChild(path);
+          drawEdges(child, depth + 1);
+        }
+      }
+
+      function drawNodes(node, depth) {
+        const g = document.createElementNS(ns, "g");
+        const rect = document.createElementNS(ns, "rect");
+        const w = Math.max(130, Math.min(220, node.title.length * 10 + 36));
+        const h = 40;
+        rect.setAttribute("x", node.x - w / 2);
+        rect.setAttribute("y", node.y - h / 2);
+        rect.setAttribute("width", w);
+        rect.setAttribute("height", h);
+        rect.setAttribute("rx", "10");
+        rect.setAttribute("fill", depth === 0 ? "#0369a1" : "#1e293b");
+        rect.setAttribute("stroke", colors[depth % colors.length]);
+        rect.setAttribute("stroke-width", "2");
+
+        const text = document.createElementNS(ns, "text");
+        text.setAttribute("x", node.x);
+        text.setAttribute("y", node.y + 5);
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("fill", "#f8fafc");
+        text.setAttribute("font-size", "13.5");
+        text.textContent = node.title;
+
+        g.appendChild(rect);
+        g.appendChild(text);
+        svg.appendChild(g);
+
+        for (const child of node.children || []) {
+          drawNodes(child, depth + 1);
+        }
+      }
+
+      drawEdges(root, 0);
+      drawNodes(root, 0);
+    }
+
+    function updateFromTextarea() {
+      const text = document.getElementById("bulletsInput").value;
+      const title = document.getElementById("rootTitle").value;
+      renderMindMap(parseBullets(text, title));
+    }
+
+    document.getElementById("renderBtn").addEventListener("click", updateFromTextarea);
+    document.getElementById("bulletsInput").addEventListener("input", updateFromTextarea);
+    document.getElementById("rootTitle").addEventListener("input", updateFromTextarea);
+
+    document.getElementById("loadJsonBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("./mindmap.json?t=" + Date.now());
+        if (!res.ok) throw new Error("ملف mindmap.json غير موجود بعد");
+        const data = await res.json();
+        document.getElementById("rootTitle").value = data.Title || data.title || "خريطة ذهنية";
+        renderMindMap({
+          title: data.Title || data.title,
+          children: (data.Children || data.children || []).map(mapCSharpNode)
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    function mapCSharpNode(n) {
+      return {
+        title: n.Title ?? n.title ?? "",
+        children: (n.Children ?? n.children ?? []).map(mapCSharpNode)
+      };
+    }
+
+    document.getElementById("downloadSvgBtn").addEventListener("click", () => {
+      const svgData = new XMLSerializer().serializeToString(document.getElementById("mapSvg"));
+      const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mindmap.svg";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    updateFromTextarea();
+  </script>
+</body>
+</html>
