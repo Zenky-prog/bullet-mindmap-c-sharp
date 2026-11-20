@@ -35,7 +35,7 @@
 </head>
 <body>
   <header>
-    <h1>محاكي النقاط إلى خريطة ذهنية — v3 (ملاحظات)</h1>
+    <h1>محاكي النقاط إلى خريطة ذهنية — v4</h1>
     <div class="controls">
       <input id="rootTitle" type="text" value="خريطة ذهنية" placeholder="عنوان الجذر" />
       <button id="sampleNotesBtn" class="accent">مثال بملاحظات</button>
@@ -48,6 +48,8 @@
       <button id="loadJsonBtn" class="secondary">تحميل mindmap.json</button>
       <button id="exportJsonBtn" class="secondary">تصدير JSON</button>
       <button id="importJsonBtn" class="secondary">استيراد JSON</button>
+      <button id="exportMdBtn" class="secondary">تصدير Markdown</button>
+      <button id="downloadPngBtn" class="secondary">حفظ PNG</button>
       <button id="downloadSvgBtn" class="secondary">حفظ SVG</button>
       <input id="jsonFileInput" type="file" accept=".json,application/json" style="display:none" />
     </div>
@@ -65,7 +67,7 @@
     - راسبيري باي | معالجة أعلى</textarea>
       <div class="hint">
         • الملاحظات تظهر مباشرة أسفل العقدة بلون أخضر وبعلامة 📝.<br />
-        • اضغط على زر "مثال بملاحظات" في الأعلى لاختبار سريع، أو اضغط على أي عقدة لتعديل ملاحظتها بالأسفل.
+        • يمكنك تصدير الخريطة كـ Markdown أو صورة PNG أو SVG أو JSON.
       </div>
     </section>
 
@@ -245,6 +247,29 @@
       return root;
     }
 
+    function treeToMarkdown(root) {
+      if (!root) return "";
+      const lines = [`# ${root.title || "خريطة ذهنية"}`];
+      if (root.note && root.note.trim()) {
+        lines.push("", `> ${root.note.trim()}`);
+      }
+      lines.push("");
+
+      function walk(node, depth) {
+        const indent = "  ".repeat(depth);
+        const notePart = node.note && node.note.trim() ? ` — *${node.note.trim()}*` : "";
+        lines.push(`${indent}- **${node.title}**${notePart}`);
+        for (const child of node.children || []) {
+          walk(child, depth + 1);
+        }
+      }
+
+      for (const child of root.children || []) {
+        walk(child, 0);
+      }
+      return lines.join("\n");
+    }
+
     function setAllCollapsed(node, collapsed) {
       if (!node) return;
       if (node.children && node.children.length > 0) {
@@ -405,6 +430,18 @@
       URL.revokeObjectURL(url);
     });
 
+    document.getElementById("exportMdBtn").addEventListener("click", () => {
+      if (!currentTree) return;
+      const md = treeToMarkdown(currentTree);
+      const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mindmap.md";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
     const jsonFileInput = document.getElementById("jsonFileInput");
     document.getElementById("importJsonBtn").addEventListener("click", () => jsonFileInput.click());
     jsonFileInput.addEventListener("change", async (e) => {
@@ -448,8 +485,18 @@
       };
     }
 
+    function buildExportSvg() {
+      const clone = svg.cloneNode(true);
+      const group = clone.querySelector("#viewportGroup");
+      if (group) {
+        group.setAttribute("transform", "translate(20, 20) scale(1)");
+      }
+      return clone;
+    }
+
     document.getElementById("downloadSvgBtn").addEventListener("click", () => {
-      const svgData = new XMLSerializer().serializeToString(svg);
+      const exportSvg = buildExportSvg();
+      const svgData = new XMLSerializer().serializeToString(exportSvg);
       const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -457,6 +504,48 @@
       a.download = "mindmap.svg";
       a.click();
       URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("downloadPngBtn").addEventListener("click", () => {
+      const exportSvg = buildExportSvg();
+      const vb = (exportSvg.getAttribute("viewBox") || "0 0 1000 600").split(" ").map(Number);
+      const width = vb[2] || 1000;
+      const height = vb[3] || 600;
+      exportSvg.setAttribute("width", width);
+      exportSvg.setAttribute("height", height);
+
+      const svgData = new XMLSerializer().serializeToString(exportSvg);
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob((pngBlob) => {
+          if (!pngBlob) return;
+          const pngUrl = URL.createObjectURL(pngBlob);
+          const a = document.createElement("a");
+          a.href = pngUrl;
+          a.download = "mindmap.png";
+          a.click();
+          URL.revokeObjectURL(pngUrl);
+        }, "image/png");
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        alert("تعذر توليد صورة PNG في هذا المتصفح، يمكنك استخدام حفظ SVG.");
+      };
+
+      img.src = url;
     });
 
     updateFromTextarea();
