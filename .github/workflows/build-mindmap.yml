@@ -1,0 +1,36 @@
+name: Build MindMap with C#
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run C# MindMap Generator
+        run: dotnet run --project src/MindMapCli/MindMapCli.csproj -- sample-bullets.txt docs/mindmap.json "خريطة الروبوتات"
+
+      - name: Commit updated mindmap.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/mindmap.json
+          if git diff --staged --quiet; then
+            echo "No changes in mindmap.json"
+          else
+            git commit -m "chore: update docs/mindmap.json from bullets"
+            git push
+          fi
