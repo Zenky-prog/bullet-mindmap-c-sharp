@@ -1,50 +1,60 @@
 {
-  "Id": "90d9d95e",
-  "Title": "\u062E\u0631\u064A\u0637\u0629 \u0627\u0644\u0631\u0648\u0628\u0648\u062A\u0627\u062A",
+  "Id": "317e17fa",
+  "Title": "خريطة الروبوتات",
+  "Note": null,
   "Children": [
     {
-      "Id": "ab8c1174",
-      "Title": "\u0627\u0644\u0631\u0648\u0628\u0648\u062A\u0627\u062A",
+      "Id": "e441615b",
+      "Title": "الروبوتات",
+      "Note": null,
       "Children": [
         {
-          "Id": "ebb875c6",
-          "Title": "\u0627\u0644\u062D\u0633\u0627\u0633\u0627\u062A",
+          "Id": "bf94f250",
+          "Title": "الحساسات",
+          "Note": null,
           "Children": [
             {
-              "Id": "18afb18c",
-              "Title": "\u062D\u0633\u0627\u0633 \u0627\u0644\u0645\u0633\u0627\u0641\u0629 (HC-SR04)",
+              "Id": "67ef8fe5",
+              "Title": "حساس المسافة (HC-SR04)",
+              "Note": null,
               "Children": []
             },
             {
-              "Id": "1219e361",
-              "Title": "\u062D\u0633\u0627\u0633 \u062A\u062A\u0628\u0639 \u0627\u0644\u062E\u0637",
+              "Id": "9cc72b1a",
+              "Title": "حساس تتبع الخط",
+              "Note": null,
               "Children": []
             }
           ]
         },
         {
-          "Id": "248bd093",
-          "Title": "\u0627\u0644\u062A\u062D\u0643\u0645",
+          "Id": "cb8f3215",
+          "Title": "التحكم",
+          "Note": null,
           "Children": [
             {
-              "Id": "c06ec5a3",
-              "Title": "\u0623\u0631\u062F\u0648\u064A\u0646\u0648",
+              "Id": "8e35cca2",
+              "Title": "أردوينو",
+              "Note": null,
               "Children": []
             },
             {
-              "Id": "361ebe10",
-              "Title": "\u0631\u0627\u0633\u0628\u064A\u0631\u064A \u0628\u0627\u064A",
+              "Id": "285aa5f4",
+              "Title": "راسبيري باي",
+              "Note": null,
               "Children": []
             }
           ]
         },
         {
-          "Id": "9136226a",
-          "Title": "\u0627\u0644\u0645\u062D\u0627\u0643\u0627\u0629",
+          "Id": "eec8dfe4",
+          "Title": "المحاكاة",
+          "Note": null,
           "Children": [
             {
-              "Id": "41fd4c8b",
+              "Id": "20eb86db",
               "Title": "Wokwi",
+              "Note": null,
               "Children": []
             }
           ]
